@@ -49,9 +49,3 @@ The nightly coded Online Java Script Okey Game, Rummikub your grandparents warne
   * Make it clean code (and also English spells).
   * Game-bot for disconnected players at different difficulty levels.
   * Display logger.
-
-## Link to recent app
-> https://okey.erkuttekoglu.com \
-> *Note that it's a free dyno so wait a bit.*
-
-&copy; 2021 Erkut
