@@ -1,0 +1,30 @@
+{
+  "name": "okey-baba",
+  "version": "1.0.0",
+  "description": "The Online Java Script Okey Game, Rummikub your grandparents warned you about.",
+  "main": "server",
+  "scripts": {
+    "start": "node server/server",
+    "dev": "nodemon server/server",
+    "setup-firebase": "node setup-firebase.js"
+  },
+  "author": "Erkut",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "nodemon": "^2.0.7"
+  },
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "firebase": "^12.0.0",
+    "firebase-admin": "^13.4.0",
+    "helmet": "^4.5.0",
+    "morgan": "^1.10.0",
+    "socket.io": "^2.4.0",
+    "underscore": "^1.13.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ErcouldnT/Okey-Baba.git"
+  }
+}

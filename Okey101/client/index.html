@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Okey 101!</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="firebase-ui.css">
+  <link rel="shortcut icon" type="image/png" href="assets/favicon.png">
+</head>
+<body>
+  <div class="choose-name">
+    <h1 class="" >Enter name: </h1>
+    <form id="form" action="">
+      <input class="inputform" id="input" autofocus autocomplete="off" />
+      <button class="continuebutton">Continue</button>
+    </form>
+  </div>
+  <div class="wrapper destroy">
+    <input class="host" type="button" value="Create game" onclick="">
+    <input class="join" type="button" value="Join game" onclick="">
+  </div>
+  <div class="onlinelist destroy">
+    <h1 class="expectedplayers">Online Oyuncular: </h1>
+    <div class="playerslist"></div>
+  </div>
+  <div class="rooms destroy">
+    <form id="room-form" action="">
+      <h1>Create roomn</h1>
+      <input class="inputform" id="input" autocomplete="off" />
+      <button class="continuebutton">Name the room</button>
+    </form>
+  </div>
+  <div class="gameroom destroy">
+    <!-- <h1 class="header ">Game begions!</h1> -->
+    <h3 class="player-3">player 3</h3>
+    <div class="con-2">
+      <div class="stone_place" id="id-3"></div>
+      <div class="stone_place" id="id-2"></div>
+    </div>
+    <div class="con-1">
+      <h3 class="player-2">player 2</h3>
+      <div id="indicator" class="indicator stone"></div>
+      <div class="middle-stone-place">
+        <div class="new stone"></div>
+      </div>
+      <h3 class="player-4">player 4</h3>
+    </div>
+    <div class="con-2">
+      <div class="coming-stone-place" id="id-4"></div>
+      <div class="going-stone-place" id="id-1"></div>
+    </div>
+    <div>
+      <div class="info-message"></div>
+      <div id="board" class="board"></div>
+      <h3 class="dealer">Dealer <span id="combo-points-total" style="margin-left: 10px; color: red; font-size: 18px;"></span></h3>
+      <!-- Кнопка для сброса комбинаций -->
+      <div style="text-align: center; margin-top: 10px;">
+        <button id="drop-combinations-btn" class="drop-combinations-button" onclick="dropCombinationsToTable()">
+          Сбросить комбинации на стол (мин. 101 очко)
+        </button>
+      </div>
+      <!-- Automated debugging toggle -->
+      <div style="text-align: center; margin-top: 10px;">
+        <button id="auto-debug-toggle" onclick="toggleAutoDebug()" style="background-color: #00d2d3; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+          🤖 Enable Auto Debug
+        </button>
+      </div>
+      <!-- Debug info panel -->
+      <div id="debug-panel" style="display: none; margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #dee2e6;">
+        <h4 style="margin: 0 0 10px 0; color: #495057;">🔍 Debug Information</h4>
+        <div id="debug-content" style="font-size: 12px; color: #6c757d;">
+          Automated debugging will show issues and performance metrics in the console.
+        </div>
+      </div>
+    </div>
+    <!-- Общий стол для сброшенных комбинаций -->
+    <div class="common-table-container">
+      <h3>Общий стол (сброшенные комбинации)</h3>
+      <div id="common-table" class="common-table"></div>
+    </div>
+    <div class="con-3 destroy">
+      <div class="message"></div>
+      <div class="finished board"></div>
+    </div>
+  </div>
+  
+  <!-- Firebase SDK -->
+  <script type="module" src="firebase-client.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

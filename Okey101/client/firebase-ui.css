@@ -1,0 +1,320 @@
+/* Firebase UI Styles */
+
+.firebase-auth-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 300px;
+  min-width: 250px;
+}
+
+/* Authentication Button */
+.auth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #4285f4, #34a853);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+}
+
+.auth-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
+}
+
+.auth-button:active {
+  transform: translateY(0);
+}
+
+.auth-icon {
+  font-size: 16px;
+}
+
+.auth-text {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* User Profile */
+.user-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #4285f4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.user-details h3 {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.user-details p {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.sign-out-btn {
+  background: linear-gradient(135deg, #ea4335, #d93025);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  align-self: flex-end;
+}
+
+.sign-out-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(234, 67, 53, 0.3);
+}
+
+/* Leaderboard */
+.leaderboard {
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 15px;
+}
+
+.leaderboard h2 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.leaderboard-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border-radius: 6px;
+  background: rgba(248, 249, 250, 0.8);
+  padding: 8px;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 12px;
+}
+
+.leaderboard-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.leaderboard-item.top-1 {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  border: 2px solid #ffc107;
+}
+
+.leaderboard-item.top-2 {
+  background: linear-gradient(135deg, #c0c0c0, #e5e5e5);
+  border: 2px solid #b0b0b0;
+}
+
+.leaderboard-item.top-3 {
+  background: linear-gradient(135deg, #cd7f32, #daa520);
+  border: 2px solid #b8860b;
+}
+
+.rank {
+  font-weight: bold;
+  color: #333;
+  min-width: 20px;
+}
+
+.name {
+  flex: 1;
+  margin: 0 8px;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 10px;
+}
+
+.wins {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.avg-score {
+  color: #6c757d;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .firebase-auth-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+    min-width: auto;
+  }
+  
+  .user-info {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .leaderboard-list {
+    max-height: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .firebase-auth-container {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    margin: 10px;
+    border-radius: 8px;
+  }
+  
+  .auth-button {
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+  }
+  
+  .user-avatar {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .leaderboard h2 {
+    font-size: 18px;
+  }
+}
+
+/* Loading States */
+.leaderboard-list p {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  margin: 20px 0;
+}
+
+/* Error States */
+.leaderboard-list .error {
+  color: #dc3545;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.firebase-auth-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.leaderboard-item {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .firebase-auth-container {
+    background: rgba(30, 30, 30, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .user-details h3 {
+    color: #fff;
+  }
+  
+  .user-details p {
+    color: #ccc;
+  }
+  
+  .leaderboard h2 {
+    color: #fff;
+  }
+  
+  .leaderboard-list {
+    background: rgba(40, 40, 40, 0.8);
+  }
+  
+  .leaderboard-item {
+    background: #2d2d2d;
+    color: #fff;
+  }
+  
+  .name {
+    color: #fff;
+  }
+  
+  .avg-score {
+    color: #aaa;
+  }
+} 
