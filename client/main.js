@@ -1037,7 +1037,7 @@ function stoneRollMechanics() {
     // Check if player can throw a stone
     const canThrowStone = firstStart || (you === currentPlayer && didugetstone);
     
-    console.log("StoneRollMechanics drop - canThrowStone:", canThrowStone, "firstStart:", firstStart, "you:", you, "currentPlayer:", currentPlayer, "didugetstone:", didugetstone);
+    console.log("StoneRollMechanics drop - canThrowStone:", canThrowStone, "firstStart:", firstStart, "you:", you, "didugetstone:", didugetstone);
 
     if (canThrowStone) {
       if (!sent.classList.contains('new')) {
@@ -1187,7 +1187,7 @@ socket.on('finished', (match_finisher) => {
     };
   };
   // Close this again when new game starts.
-  document.querySelector('.message').textContent = list_of_gamers[match_finisher.player - 1].playernickname + ", '" + last_shot + "' ile bitirdi.";
+  document.querySelector('.message').textContent = list_of_gamers[match_finisher.player - 1].playernickname + ", '" + last_shot + "' using the last stone, finished the game.";
   document.querySelector('.con-3').classList.remove('destroy');
 });
 
@@ -1466,6 +1466,8 @@ socket.on('client konsol', function(msg) {
 
 // Handle combinations dropped to table
 socket.on('combinations dropped to table', function(data) {
+  console.log('Received combinations dropped to table:', data);
+  
   const commonTable = document.getElementById('common-table');
   
   // Create a container for this player's combinations
@@ -1484,13 +1486,80 @@ socket.on('combinations dropped to table', function(data) {
   // Add each combination
   data.combinations.forEach(combination => {
     const comboDisplay = createCombinationDisplay(combination, data.playerName);
+    // Store combination data for interaction
+    comboDisplay.dataset.combination = JSON.stringify(combination);
+    comboDisplay.dataset.playerName = data.playerName;
+    comboDisplay.dataset.isInteractive = 'true';
     playerCombinationsDiv.appendChild(comboDisplay);
   });
   
+  // Store player name in the container for initial meld check
+  playerCombinationsDiv.dataset.playerName = data.playerName;
+  
   commonTable.appendChild(playerCombinationsDiv);
+  
+  // Make combinations interactive
+  makeTableCombinationsInteractive();
+  
+  // If this is the current player, remove stones from their board
+  if (data.player === you) {
+    console.log('Removing stones from current player board');
+    
+    // Clear the board (remove stones that are part of combinations)
+    const board = getCachedElements('.board > div');
+    const stonesToRemove = new Set();
+    
+    data.combinations.forEach(combo => {
+      // Mark positions to remove based on startIndex and endIndex
+      for (let i = combo.startIndex; i <= combo.endIndex; i++) {
+        stonesToRemove.add(i);
+      }
+    });
+
+    // Remove the stones in reverse order to maintain indices
+    const positionsToRemove = Array.from(stonesToRemove).sort((a, b) => b - a);
+    positionsToRemove.forEach(index => {
+      if (board[index] && board[index].firstChild) {
+        board[index].firstChild.remove();
+      }
+    });
+
+    // Update combinations display
+    highlightCombinationsOnBoard();
+    
+    // Check if player can finish their hand after dropping combinations
+    setTimeout(() => {
+      if (checkCanFinishHand()) {
+        console.log("Player finished their hand after dropping combinations!");
+      } else {
+        createFinishHandButton();
+      }
+    }, 100);
+  }
   
   // Show notification
   console.log(`${data.playerName} сбросил комбинации на ${data.totalPoints} очков`);
+  
+  // Show success message to the player who dropped combinations
+  if (data.player === you) {
+    alert(`Комбинации успешно сброшены на стол! (${data.totalPoints} очков)`);
+  }
+});
+
+// Handle meld errors from server
+socket.on('meld_error', function(data) {
+  console.log('Meld error received:', data);
+  alert(`Ошибка при сбросе комбинаций: ${data.message}`);
+});
+
+// Handle player opened notification
+socket.on('player opened', function(data) {
+  console.log('Player opened:', data);
+  if (data.player === you) {
+    currentPlayerHasOpened = true;
+    console.log('Current player has opened with', data.totalPoints, 'points');
+    alert(`Поздравляем! Вы открыли руку с ${data.totalPoints} очками. Теперь вы можете создавать новые комбинации и добавлять камни к существующим комбинациям.`);
+  }
 });
 
 socket.on('players', function(msg) {
@@ -1526,6 +1595,10 @@ socket.on('game info', function(information) {
   
   // Clear common table when new game starts
   clearCommonTable();
+  
+  // Reset player opened status for new game
+  currentPlayerHasOpened = false;
+  console.log('New game started - reset player opened status');
 });
 
 socket.on('indicator stone', function(stone) {
@@ -1933,21 +2006,21 @@ function findAllValidCombinations() {
     }
   });
 
-  // Find all possible combinations first
+  // Find all possible combinations from all stones (not just consecutive)
   let allPossibleCombinations = [];
   
-  // Check all possible consecutive groups of 3+ stones
-  for (let i = 0; i < stones.length; i++) {
-    for (let len = 3; len <= stones.length - i; len++) {
-      const group = stones.slice(i, i + len);
-      
-      if (isValidCombinationWithJoker(group)) {
-        const points = calculateCombinationPoints(group);
+  // Generate all possible combinations of 3+ stones
+  for (let size = 3; size <= stones.length; size++) {
+    const combinations = generateCombinations(stones, size, stonePositions);
+    
+    for (const combo of combinations) {
+      if (isValidCombinationWithJoker(combo.stones)) {
+        const points = calculateCombinationPoints(combo.stones);
         allPossibleCombinations.push({
-          stones: group,
+          stones: combo.stones,
           points: points,
-          startIndex: stonePositions[i], // Use actual board position
-          endIndex: stonePositions[i + len - 1] // Use actual board position
+          startIndex: combo.minIndex,
+          endIndex: combo.maxIndex
         });
       }
     }
@@ -1961,7 +2034,7 @@ function findAllValidCombinations() {
     return (b.endIndex - b.startIndex) - (a.endIndex - a.startIndex);
   });
 
-  // Select non-overlapping combinations
+  // Select non-overlapping combinations using greedy algorithm
   let selectedCombinations = [];
   let usedPositions = new Set();
 
@@ -1987,6 +2060,35 @@ function findAllValidCombinations() {
   return selectedCombinations;
 }
 
+// Helper function to generate all combinations of a given size
+function generateCombinations(stones, size, stonePositions) {
+  const combinations = [];
+  
+  function backtrack(start, currentCombo, currentIndices) {
+    if (currentCombo.length === size) {
+      const minIndex = Math.min(...currentIndices);
+      const maxIndex = Math.max(...currentIndices);
+      combinations.push({
+        stones: [...currentCombo],
+        minIndex: minIndex,
+        maxIndex: maxIndex
+      });
+      return;
+    }
+    
+    for (let i = start; i < stones.length; i++) {
+      currentCombo.push(stones[i]);
+      currentIndices.push(stonePositions[i]); // Use actual board position
+      backtrack(i + 1, currentCombo, currentIndices);
+      currentCombo.pop();
+      currentIndices.pop();
+    }
+  }
+  
+  backtrack(0, [], []);
+  return combinations;
+}
+
 // Function to calculate total points from all valid combinations
 function calculateTotalCombinationPoints() {
   const combinations = findAllValidCombinations();
@@ -2008,6 +2110,9 @@ function dropCombinationsToTable() {
     return;
   }
 
+  console.log('Dropping combinations to table:', combinations);
+  console.log('Total points:', totalPoints);
+
   // Send combinations to server
   socket.emit('drop combinations to table', {
     player: you,
@@ -2016,36 +2121,11 @@ function dropCombinationsToTable() {
     hasDrawnStone: hasDrawnStoneThisTurn
   });
 
-  // Clear the board (remove stones that are part of combinations)
-  const board = getCachedElements('.board > div');
-  const stonesToRemove = new Set();
+  // Don't remove stones from board immediately - wait for server confirmation
+  // The server will send back 'combinations dropped to table' event
+  // and we'll handle the stone removal there
   
-  combinations.forEach(combo => {
-    // Mark positions to remove based on startIndex and endIndex
-    for (let i = combo.startIndex; i <= combo.endIndex; i++) {
-      stonesToRemove.add(i);
-    }
-  });
-
-  // Remove the stones in reverse order to maintain indices
-  const positionsToRemove = Array.from(stonesToRemove).sort((a, b) => b - a);
-  positionsToRemove.forEach(index => {
-    if (board[index] && board[index].firstChild) {
-      board[index].firstChild.remove();
-    }
-  });
-
-  // Update combinations display
-  highlightCombinationsOnBoard();
-  
-  // Check if player can finish their hand after dropping combinations
-  setTimeout(() => {
-    if (checkCanFinishHand()) {
-      console.log("Player finished their hand after dropping combinations!");
-    } else {
-      createFinishHandButton();
-    }
-  }, 100);
+  console.log('Sent drop combinations request to server');
 }
 
 // Function to create combination display element
@@ -2200,19 +2280,21 @@ function debugThrowStone() {
     }
     
     if (stoneToThrow) {
-      console.log("Throwing stone:", stoneToThrow.colour, stoneToThrow.numb);
+      console.log("Throwing stone:", stoneToThrow.colour + " " + stoneToThrow.numb);
+      if (stoneToThrow.isFalseJoker) {
+        console.log("This is a joker stone being thrown!");
+      }
       didugetstone = false;
       firstStart = false;
-      
+      // Client-side validation can be added here...
       socket.emit("throw stones on the ground", {
         player: you,
         stone: stoneToThrow
       });
-      
       // Remove the stone from hand
       stoneElement.remove();
-      console.log("Stone thrown successfully");
-      console.log("Updated state - didugetstone: " + didugetstone + ", firstStart: " + firstStart);
+      console.log("Stone thrown successfully to center");
+      console.log("Updated state after throwing - didugetstone: " + didugetstone + ", firstStart: " + firstStart);
     } else {
       console.log("No stones found in hand to throw");
     }
@@ -2722,22 +2804,60 @@ socket.on('game ended', function(data) {
   if (data.reason === 'hand_empty') {
     const winnerName = list_of_gamers.find(p => p.player === data.winner)?.playernickname || `Player ${data.winner}`;
     gameEndHTML += `<p><strong>Winner: ${winnerName}</strong></p>`;
-    gameEndHTML += '<p>Reason: Player emptied their hand</p>';
+    gameEndHTML += '<p>Reason: Player emptied their hand (went out)</p>';
+  } else if (data.reason === 'drawing_stack_exhausted') {
+    if (data.isDraw) {
+      const winnerNames = data.winners.map(w => list_of_gamers.find(p => p.player === w)?.playernickname || `Player ${w}`).join(', ');
+      gameEndHTML += `<p><strong>Winners: ${winnerNames}</strong> (Tie)</p>`;
+      gameEndHTML += `<p>Reason: Drawing stack exhausted - lowest score wins (${data.winningScore} points)</p>`;
+    } else if (data.winner) {
+      const winnerName = list_of_gamers.find(p => p.player === data.winner)?.playernickname || `Player ${data.winner}`;
+      gameEndHTML += `<p><strong>Winner: ${winnerName}</strong></p>`;
+      gameEndHTML += `<p>Reason: Drawing stack exhausted - lowest score wins (${data.winningScore} points)</p>`;
+    } else {
+      gameEndHTML += '<p><strong>No Winner</strong></p>';
+      gameEndHTML += '<p>Reason: Drawing stack exhausted - no players have opened</p>';
+    }
   } else if (data.reason === 'deck_empty') {
     gameEndHTML += '<p><strong>No Winner</strong></p>';
-    gameEndHTML += '<p>Reason: Deck is empty</p>';
+    gameEndHTML += '<p>Reason: No tiles left to draw</p>';
+  } else if (data.reason === 'all_pairs') {
+    gameEndHTML += '<p><strong>No Winner</strong></p>';
+    gameEndHTML += '<p>Reason: All players have only pairs</p>';
   }
   
   gameEndHTML += '<h3>Final Scores:</h3>';
   gameEndHTML += '<div style="text-align: left; margin: 10px 0;">';
   
   for (let player of list_of_gamers) {
-    const score = data.scores[player.player] || 0;
+    const score = data.scores[player.player];
     const hasDropped = data.playersWhoDropped.includes(player.player);
-    const scoreText = score > 0 ? `+${score}` : score.toString();
-    const droppedText = hasDropped ? ' (Dropped combinations)' : ' (No combinations)';
     
-    gameEndHTML += `<p><strong>${player.playernickname}:</strong> ${scoreText}${droppedText}</p>`;
+    if (data.reason === 'drawing_stack_exhausted') {
+      if (score === null) {
+        // Player hasn't opened - no score
+        gameEndHTML += `<p><strong>${player.playernickname}:</strong> <em>No score (hasn't opened)</em></p>`;
+      } else {
+        // Player has opened - show score
+        const scoreText = score > 0 ? `+${score}` : score.toString();
+        gameEndHTML += `<p><strong>${player.playernickname}:</strong> ${scoreText} (Opened player)</p>`;
+      }
+    } else {
+      // Other game end scenarios
+      const scoreValue = score || 0;
+      const scoreText = scoreValue > 0 ? `+${scoreValue}` : scoreValue.toString();
+      const droppedText = hasDropped ? ' (Dropped combinations)' : ' (No combinations)';
+      
+      // Add joker penalty indicator if score includes joker penalty
+      let jokerText = '';
+      if (scoreValue >= 101 && hasDropped) {
+        jokerText = ' (Includes joker penalty)';
+      } else if (scoreValue >= 101 && !hasDropped) {
+        jokerText = ' (Joker penalty only)';
+      }
+      
+      gameEndHTML += `<p><strong>${player.playernickname}:</strong> ${scoreText}${droppedText}${jokerText}</p>`;
+    }
   }
   
   gameEndHTML += '</div>';
@@ -2759,8 +2879,6 @@ function checkCanFinishHand() {
       stonesInHand.push(div.firstChild);
     }
   });
-  
-  console.log("Stones in hand:", stonesInHand.length);
   
   // Player can finish if they have only 1 stone left and it's their turn
   if (stonesInHand.length === 1 && you === currentPlayer && didugetstone) {
@@ -2784,6 +2902,148 @@ function checkCanFinishHand() {
   }
   
   return false;
+}
+
+// Function to check if player can go out (has valid combinations for all stones except one)
+function checkCanGoOut() {
+  const board = getCachedElements('.board > div');
+  const stonesInHand = [];
+  
+  board.forEach(div => {
+    if (div.firstChild) {
+      stonesInHand.push(stoneCSStoOBJECT(div.firstChild));
+    }
+  });
+  
+  // Need at least 2 stones to consider going out (one to discard, rest in combinations)
+  if (stonesInHand.length < 2) {
+    return false;
+  }
+  
+  // Check if player has completed initial meld
+  if (!hasCompletedInitialMeld()) {
+    return false;
+  }
+  
+  // Try to find valid combinations for all stones except one
+  for (let i = 0; i < stonesInHand.length; i++) {
+    const stonesForCombination = stonesInHand.filter((_, index) => index !== i);
+    
+    if (canFormValidCombinations(stonesForCombination)) {
+      console.log("Player can go out! Discard stone at position", i);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Function to check if stones can form valid combinations
+function canFormValidCombinations(stones) {
+  if (stones.length < 3) {
+    return false; // Need at least 3 stones for a valid combination
+  }
+  
+  // Try to find at least one valid combination
+  const combinations = findAllValidCombinationsFromStones(stones);
+  return combinations.length > 0;
+}
+
+// Function to find all valid combinations from a set of stones
+function findAllValidCombinationsFromStones(stones) {
+  const combinations = [];
+  
+  // Check for runs (consecutive numbers, same suit)
+  const runs = findRuns(stones);
+  combinations.push(...runs);
+  
+  // Check for sets (same number, different suits)
+  const sets = findSets(stones);
+  combinations.push(...sets);
+  
+  return combinations;
+}
+
+// Function to find runs in stones
+function findRuns(stones) {
+  const runs = [];
+  
+  // Group stones by suit
+  const stonesBySuit = {};
+  stones.forEach(stone => {
+    if (!stonesBySuit[stone.suit]) {
+      stonesBySuit[stone.suit] = [];
+    }
+    stonesBySuit[stone.suit].push(stone);
+  });
+  
+  // Check each suit for runs
+  for (const [suit, suitStones] of Object.entries(stonesBySuit)) {
+    if (suitStones.length >= 3) {
+      // Sort by number
+      suitStones.sort((a, b) => parseInt(a.numb, 10) - parseInt(b.numb, 10));
+      
+      // Find consecutive sequences
+      for (let i = 0; i <= suitStones.length - 3; i++) {
+        const sequence = suitStones.slice(i, i + 3);
+        if (isConsecutive(sequence)) {
+          runs.push({
+            type: 'run',
+            stones: sequence,
+            points: calculateCombinationPoints(sequence)
+          });
+        }
+      }
+    }
+  }
+  
+  return runs;
+}
+
+// Function to find sets in stones
+function findSets(stones) {
+  const sets = [];
+  
+  // Group stones by number
+  const stonesByNumber = {};
+  stones.forEach(stone => {
+    if (!stonesByNumber[stone.numb]) {
+      stonesByNumber[stone.numb] = [];
+    }
+    stonesByNumber[stone.numb].push(stone);
+  });
+  
+  // Check each number for sets
+  for (const [number, numberStones] of Object.entries(stonesByNumber)) {
+    if (numberStones.length >= 3) {
+      // Check if all suits are different
+      const suits = numberStones.map(stone => stone.suit);
+      const uniqueSuits = new Set(suits);
+      
+      if (uniqueSuits.size === suits.length) {
+        sets.push({
+          type: 'set',
+          stones: numberStones,
+          points: calculateCombinationPoints(numberStones)
+        });
+      }
+    }
+  }
+  
+  return sets;
+}
+
+// Function to check if stones are consecutive
+function isConsecutive(stones) {
+  if (stones.length < 3) return false;
+  
+  const numbers = stones.map(stone => parseInt(stone.numb)).sort((a, b) => a - b);
+  
+  for (let i = 1; i < numbers.length; i++) {
+    if (numbers[i] !== numbers[i-1] + 1) return false;
+  }
+  
+  return true;
 }
 
 // Function to create finish hand button
@@ -2874,17 +3134,6 @@ function debugCompleteGameFlow() {
   
   console.log("=== END DEBUG COMPLETE GAME FLOW ===");
 }
-
-// Handle meld errors (insufficient points for initial meld)
-socket.on('meld_error', function(data) {
-  console.log("=== MELD ERROR ===");
-  console.log("Error message:", data.message);
-  
-  // Show error message to user
-  alert(data.message);
-  
-  console.log("=== END MELD ERROR ===");
-});
 
 // Debug function to test all game rules
 function debugAllGameRules() {
@@ -2987,5 +3236,857 @@ function debugStoneDistribution() {
   console.log("Distribution correct:", stonesInHand.length === expectedHandSize);
   
   console.log("=== END DEBUG STONE DISTRIBUTION ===");
+}
+
+// Function to add stone to existing combination on table
+function addStoneToTableCombination(stone, targetCombination, position) {
+  // Check if player has completed initial meld
+  if (!hasCompletedInitialMeld()) {
+    alert('Вы должны сначала сбросить комбинацию на 101+ очков, прежде чем добавлять камни к существующим комбинациям.');
+    return false;
+  }
+
+  // Validate the operation
+  if (!canAddStoneToCombination(stone, targetCombination, position)) {
+    alert('Невозможно добавить этот камень к данной комбинации в указанной позиции.');
+    return false;
+  }
+
+  // Send request to server
+  socket.emit('add stone to table combination', {
+    stone: stone,
+    targetCombination: targetCombination,
+    position: position,
+    player: you
+  });
+
+  return true;
+}
+
+// Function to check if player has completed initial meld
+// Global variable to track if current player has completed initial meld
+let currentPlayerHasOpened = false;
+
+function hasCompletedInitialMeld() {
+  // Check if there are any combinations on the table
+  const commonTable = getCachedElement('#common-table');
+  if (!commonTable || commonTable.children.length === 0) {
+    return false;
+  }
+  
+  // Check if any player has dropped combinations (indicating initial meld)
+  const playerCombinations = commonTable.querySelectorAll('[data-player-name]');
+  return playerCombinations.length > 0;
+}
+
+// Function to validate if stone can be added to combination
+function canAddStoneToCombination(stone, combination, position) {
+  if (!combination || !combination.stones || combination.stones.length === 0) {
+    return false;
+  }
+
+  const stones = combination.stones;
+  
+  // Check if it's a run (consecutive numbers, same suit)
+  if (isRun(stones)) {
+    return canAddToRun(stone, stones, position);
+  }
+  
+  // Check if it's a set (same number, different suits)
+  if (isSet(stones)) {
+    return canAddToSet(stone, stones);
+  }
+  
+  return false;
+}
+
+// Function to check if combination is a run
+function isRun(stones) {
+  if (stones.length < 3) return false;
+  
+  // Check if all stones have the same suit
+  const suit = stones[0].suit;
+  if (!stones.every(stone => stone.suit === suit)) return false;
+  
+  // Check if numbers are consecutive
+  const numbers = stones.map(stone => parseInt(stone.numb)).sort((a, b) => a - b);
+  for (let i = 1; i < numbers.length; i++) {
+    if (numbers[i] !== numbers[i-1] + 1) return false;
+  }
+  
+  return true;
+}
+
+// Function to check if combination is a set
+function isSet(stones) {
+  if (stones.length < 3) return false;
+  
+  // Check if all stones have the same number
+  const number = stones[0].numb;
+  if (!stones.every(stone => stone.numb === number)) return false;
+  
+  // Check if all stones have different suits
+  const suits = stones.map(stone => stone.suit);
+  const uniqueSuits = new Set(suits);
+  return uniqueSuits.size === suits.length;
+}
+
+// Function to check if stone can be added to run
+function canAddToRun(stone, runStones, position) {
+  if (stone.suit !== runStones[0].suit) return false;
+  
+  const numbers = runStones.map(s => parseInt(s.numb)).sort((a, b) => a - b);
+  const stoneNumber = parseInt(stone.numb);
+  
+  // Check if stone can be added at the beginning
+  if (position === 'start' && stoneNumber === numbers[0] - 1) {
+    return true;
+  }
+  
+  // Check if stone can be added at the end
+  if (position === 'end' && stoneNumber === numbers[numbers.length - 1] + 1) {
+    return true;
+  }
+  
+  // Check if stone can be inserted in the middle (splitting the run)
+  for (let i = 0; i < numbers.length - 1; i++) {
+    if (stoneNumber === numbers[i] + 1 && stoneNumber === numbers[i + 1] - 1) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Function to check if stone can be added to set
+function canAddToSet(stone, setStones) {
+  if (stone.numb !== setStones[0].numb) return false;
+  
+  // Check if stone has a different suit than existing stones
+  const existingSuits = setStones.map(s => s.suit);
+  return !existingSuits.includes(stone.suit);
+}
+
+// Function to split run and add stone
+function splitRunAndAddStone(stone, runStones, splitPosition) {
+  const numbers = runStones.map(s => parseInt(s.numb)).sort((a, b) => a - b);
+  const stoneNumber = parseInt(stone.numb);
+  
+  // Find where to split
+  let splitIndex = -1;
+  for (let i = 0; i < numbers.length - 1; i++) {
+    if (stoneNumber === numbers[i] + 1 && stoneNumber === numbers[i + 1] - 1) {
+      splitIndex = i;
+      break;
+    }
+  }
+  
+  if (splitIndex === -1) return null;
+  
+  // Create two new runs
+  const firstRun = runStones.slice(0, splitIndex + 1);
+  const secondRun = runStones.slice(splitIndex + 1);
+  
+  // Add stone to appropriate run
+  if (stoneNumber === numbers[splitIndex] + 1) {
+    firstRun.push(stone);
+  } else {
+    secondRun.unshift(stone);
+  }
+  
+  return {
+    firstRun: firstRun,
+    secondRun: secondRun,
+    originalRun: runStones
+  };
+}
+
+// Function to make table combinations interactive
+function makeTableCombinationsInteractive() {
+  const commonTable = getCachedElement('#common-table');
+  if (!commonTable) return;
+  
+  // Add click handlers to existing combinations
+  const combinations = commonTable.querySelectorAll('.combination-group');
+  combinations.forEach(combo => {
+    addOptimizedEventListener(combo, 'click', handleCombinationClick);
+  });
+}
+
+// Function to handle clicks on table combinations
+function handleCombinationClick(event) {
+  const combination = event.currentTarget;
+  const combinationData = combination.dataset;
+  
+  // Show options for adding stones
+  showAddStoneOptions(combination, combinationData);
+}
+
+// Function to show options for adding stones to combination
+function showAddStoneOptions(combination, combinationData) {
+  // Create a popup or modal with options
+  const modal = document.createElement('div');
+  modal.className = 'add-stone-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 20px;
+    z-index: 1000;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  `;
+  
+  modal.innerHTML = `
+    <h3>Добавить камень к комбинации</h3>
+    <p>Выберите камень из вашей руки для добавления:</p>
+    <div id="stone-selection"></div>
+    <button onclick="this.parentElement.remove()">Отмена</button>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Show available stones from player's hand
+  showAvailableStonesForCombination(combinationData, modal);
+}
+
+// Function to show available stones for combination
+function showAvailableStonesForCombination(combinationData, modal) {
+  const stoneSelection = modal.querySelector('#stone-selection');
+  const board = getCachedElements('.board > div');
+  
+  board.forEach((slot, index) => {
+    if (slot.firstChild) {
+      const stone = stoneCSStoOBJECT(slot.firstChild);
+      const stoneDiv = document.createElement('div');
+      stoneDiv.className = 'available-stone';
+      stoneDiv.style.cssText = `
+        display: inline-block;
+        margin: 5px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        cursor: pointer;
+        background: #f0f0f0;
+      `;
+      
+      stoneDiv.textContent = stone.numb;
+      stoneColorConverter(stone, stoneDiv);
+      
+      addOptimizedEventListener(stoneDiv, 'click', () => {
+        handleStoneSelection(stone, combinationData, modal);
+      });
+      
+      stoneSelection.appendChild(stoneDiv);
+    }
+  });
+}
+
+// Function to handle stone selection for adding to combination
+function handleStoneSelection(stone, combinationData, modal) {
+  // Parse combination data
+  const combination = JSON.parse(combinationData.combination || '{}');
+  
+  // Check if stone can be added
+  if (canAddStoneToCombination(stone, combination, 'auto')) {
+    addStoneToTableCombination(stone, combination, 'auto');
+    modal.remove();
+  } else {
+    alert('Этот камень нельзя добавить к данной комбинации.');
+  }
+}
+
+// Function to check player opened status
+function checkPlayerOpenedStatus() {
+  const hasOpened = hasCompletedInitialMeld();
+  }
+
+
+// Function to check if player has completed initial meld (improved)
+function hasCompletedInitialMeld() {
+  // Check if there are any combinations on the table
+  const commonTable = getCachedElement('#common-table');
+  if (!commonTable || commonTable.children.length === 0) {
+    return false;
+  }
+  
+  // Check if any player has dropped combinations (indicating initial meld)
+  const playerCombinations = commonTable.querySelectorAll('[data-player-name]');
+  return playerCombinations.length > 0;
+}
+
+// Function to update table combinations after changes
+function updateTableCombinations() {
+  // This function will be called when combinations are modified
+  makeTableCombinationsInteractive();
+}
+
+// Function to enable interactive mode for testing
+function enableInteractiveMode() {
+  console.log('Enabling interactive mode for table combinations...');
+  makeTableCombinationsInteractive();
+  
+  // Add visual indicator
+  const combinations = document.querySelectorAll('.combination-group');
+  combinations.forEach(combo => {
+    combo.dataset.isInteractive = 'true';
+    combo.style.border = '2px solid #4CAF50';
+    combo.style.cursor = 'pointer';
+  });
+  
+  alert('Interactive mode enabled! Click on combinations to add stones.');
+}
+
+// Function to test adding stone to combination
+function testAddStoneToCombination() {
+  const commonTable = getCachedElement('#common-table');
+  if (!commonTable || commonTable.children.length === 0) {
+    alert('No combinations on table to test with.');
+    return;
+  }
+  
+  // Get first combination
+  const firstCombination = commonTable.querySelector('.combination-group');
+  if (!firstCombination) {
+    alert('No combination found to test with.');
+    return;
+  }
+  
+  const combinationData = firstCombination.dataset;
+  showAddStoneOptions(firstCombination, combinationData);
+}
+
+// Function to test new combination creation
+function testNewCombinationCreation() {
+  if (!hasCompletedInitialMeld()) {
+    alert('You must complete initial meld first to test new combinations.');
+    return;
+  }
+  
+  showNewCombinationOptions();
+}
+
+// Function to test all pairs game end
+function testAllPairsGameEnd() {
+  if (you !== 1) {
+    alert('Only player 1 can trigger this test.');
+    return;
+  }
+  
+  if (confirm('Trigger all pairs game end for testing?')) {
+    socket.emit('test all pairs end');
+  }
+}
+
+// Function to test if player can go out
+function testCanGoOut() {
+  const canGoOut = checkCanGoOut();
+  const stonesInHand = countStonesInHand();
+  
+  let message = `Stones in hand: ${stonesInHand}\n`;
+  message += `Can go out: ${canGoOut ? 'YES' : 'NO'}\n`;
+  
+  if (canGoOut) {
+    message += '\nYou can go out! You have valid combinations for all stones except one.';
+  } else {
+    message += '\nYou cannot go out yet. You need valid combinations for all stones except one.';
+  }
+  
+  alert(message);
+}
+
+// Function to debug combination dropping
+function debugCombinationDropping() {
+  const totalPoints = calculateTotalCombinationPoints();
+  const combinations = findAllValidCombinations();
+  const stonesInHand = countStonesInHand();
+  
+  let message = `Debug Combination Dropping:\n`;
+  message += `Stones in hand: ${stonesInHand}\n`;
+  message += `Total points: ${totalPoints}\n`;
+  message += `Combinations found: ${combinations.length}\n`;
+  message += `Can drop: ${totalPoints >= 101 ? 'YES' : 'NO'}\n`;
+  message += `Current player: ${you}\n`;
+  message += `Has drawn stone: ${hasDrawnStoneThisTurn}\n`;
+  
+  if (combinations.length > 0) {
+    message += '\nCombinations:\n';
+    combinations.forEach((combo, index) => {
+      message += `${index + 1}. ${combo.stones.map(s => s.numb).join('-')} (${combo.points} pts, ${combo.startIndex}-${combo.endIndex})\n`;
+    });
+  }
+  
+  console.log('Debug combination dropping:', {
+    totalPoints,
+    combinations,
+    stonesInHand,
+    you,
+    hasDrawnStoneThisTurn
+  });
+  
+  alert(message);
+}
+
+// Function to test drawing stack exhausted scenario
+function testDrawingStackExhausted() {
+  if (you !== 1) {
+    alert('Only player 1 can trigger this test.');
+    return;
+  }
+  
+  if (confirm('Trigger drawing stack exhausted game end for testing?')) {
+    socket.emit('test drawing stack exhausted');
+  }
+}
+
+// Function to debug scoring calculation
+function debugScoringCalculation() {
+  const board = getCachedElements('.board > div');
+  let stones = [];
+  let stonePositions = [];
+  
+  board.forEach((div, index) => {
+    if (div.firstChild) {
+      const stone = stoneCSStoOBJECT(div.firstChild);
+      stones.push(stone);
+      stonePositions.push(index);
+    }
+  });
+  
+  let message = `Scoring Debug:\n`;
+  message += `Total stones in hand: ${stones.length}\n`;
+  message += `Stone positions: ${stonePositions.join(', ')}\n\n`;
+  
+  message += `Stones in hand:\n`;
+  stones.forEach((stone, index) => {
+    message += `${index + 1}. ${stone.numb} (${stone.colour}) - Position ${stonePositions[index]}\n`;
+  });
+  
+  message += `\nTesting all possible combinations:\n`;
+  
+  // Test all combinations of 3+ stones
+  for (let size = 3; size <= stones.length; size++) {
+    const combinations = generateCombinations(stones, size, stonePositions);
+    message += `\nCombinations of ${size} stones (${combinations.length} total):\n`;
+    
+    combinations.forEach((combo, comboIndex) => {
+      const isValid = isValidCombinationWithJoker(combo.stones);
+      const points = isValid ? calculateCombinationPoints(combo.stones) : 0;
+      const stoneValues = combo.stones.map(s => s.numb).join('-');
+      
+      message += `  ${comboIndex + 1}. ${stoneValues} - Valid: ${isValid ? 'YES' : 'NO'} - Points: ${points}\n`;
+    });
+  }
+  
+  const totalPoints = calculateTotalCombinationPoints();
+  const validCombinations = findAllValidCombinations();
+  
+  message += `\nFinal Results:\n`;
+  message += `Total points calculated: ${totalPoints}\n`;
+  message += `Valid combinations found: ${validCombinations.length}\n`;
+  
+  console.log('Scoring debug:', {
+    stones,
+    stonePositions,
+    totalPoints,
+    validCombinations
+  });
+  
+  alert(message);
+}
+
+// Function to check player opened status
+function checkPlayerOpenedStatus() {
+  const hasOpened = hasCompletedInitialMeld();
+  const totalPoints = calculateTotalCombinationPoints();
+  const combinations = findAllValidCombinations();
+  
+  let message = `Player Opened Status:\n`;
+  message += `Has opened: ${hasOpened ? 'YES' : 'NO'}\n`;
+  message += `Current player: ${you}\n`;
+  message += `Total points available: ${totalPoints}\n`;
+  message += `Valid combinations: ${combinations.length}\n`;
+  
+  if (combinations.length > 0) {
+    message += `\nCombinations found:\n`;
+    combinations.forEach((combo, index) => {
+      const stoneValues = combo.stones.map(s => s.numb).join('-');
+      message += `${index + 1}. ${stoneValues} (${combo.points} pts, pos ${combo.startIndex}-${combo.endIndex})\n`;
+    });
+  }
+  
+  if (hasOpened) {
+    message += `\n✅ You can now:\n`;
+    message += `• Create new combinations from your hand\n`;
+    message += `• Add stones to existing combinations on the table\n`;
+  } else {
+    message += `\n❌ You must first:\n`;
+    message += `• Drop combinations worth 101+ points to open your hand\n`;
+    message += `• Or drop 5+ pairs to open your hand\n`;
+  }
+  
+  console.log('Player opened status:', {
+    hasOpened,
+    totalPoints,
+    combinations: combinations.length,
+    you,
+    combinations: combinations
+  });
+  
+  alert(message);
+}
+
+// Socket event handlers for table combination interactions
+socket.on('stone added to combination', function(data) {
+  console.log('Stone added to combination:', data);
+  
+  // Remove the stone from player's hand
+  const board = getCachedElements('.board > div');
+  const stoneToRemove = board.find(slot => {
+    if (slot.firstChild) {
+      const stone = stoneCSStoOBJECT(slot.firstChild);
+      return stone.numb === data.stone.numb && stone.suit === data.stone.suit;
+    }
+    return false;
+  });
+  
+  if (stoneToRemove && stoneToRemove.firstChild) {
+    stoneToRemove.firstChild.remove();
+  }
+  
+  // Update the table display
+  updateTableCombinationDisplay(data);
+  
+  // Show success message
+  alert(`Камень ${data.stone.numb} успешно добавлен к комбинации!`);
+});
+
+// Socket event handlers for new combinations
+socket.on('new combination placed', function(data) {
+  console.log('New combination placed:', data);
+  
+  // Remove the stones from player's hand
+  const board = getCachedElements('.board > div');
+  const positionsToRemove = data.combination.stones.map(stone => stone.boardIndex).sort((a, b) => b - a);
+  
+  positionsToRemove.forEach(index => {
+    if (board[index] && board[index].firstChild) {
+      board[index].firstChild.remove();
+    }
+  });
+  
+  // Clear stone selection
+  clearStoneSelection();
+  disableNewCombinationMode();
+  
+  // Show success message
+  alert(`Новая комбинация успешно создана! (${data.combination.points} очков)`);
+});
+
+socket.on('new combination error', function(data) {
+  console.log('New combination error:', data);
+  alert(`Ошибка: ${data.message}`);
+});
+
+socket.on('combination placed', function(data) {
+  console.log('Combination placed:', data);
+  
+  // If this is the current player, mark them as opened
+  if (data.player === you && !currentPlayerHasOpened) {
+    currentPlayerHasOpened = true;
+    console.log('Current player has opened by placing new combination');
+  }
+  
+  // Add the new combination to the table display
+  const commonTable = getCachedElement('#common-table');
+  if (commonTable) {
+    const comboDisplay = createCombinationDisplay(data.combination, data.playerName);
+    comboDisplay.dataset.combination = JSON.stringify(data.combination);
+    comboDisplay.dataset.playerName = data.playerName;
+    comboDisplay.dataset.isInteractive = 'true';
+    
+    // Create container for this player if it doesn't exist
+    let playerContainer = commonTable.querySelector(`[data-player-name="${data.playerName}"]`);
+    if (!playerContainer) {
+      playerContainer = document.createElement('div');
+      playerContainer.style.marginBottom = '15px';
+      playerContainer.dataset.playerName = data.playerName;
+      
+      const playerHeader = document.createElement('div');
+      playerHeader.style.fontWeight = 'bold';
+      playerHeader.style.fontSize = '16px';
+      playerHeader.style.marginBottom = '8px';
+      playerHeader.style.color = '#333';
+      playerHeader.textContent = `${data.playerName}`;
+      playerContainer.appendChild(playerHeader);
+      
+      commonTable.appendChild(playerContainer);
+    }
+    
+    playerContainer.appendChild(comboDisplay);
+  }
+  
+  // Make combinations interactive
+  makeTableCombinationsInteractive();
+});
+
+socket.on('combination split', function(data) {
+  console.log('Combination split:', data);
+  
+  // Update the table display to show the split
+  updateTableCombinationDisplay(data);
+  
+  // Show success message
+  alert('Комбинация успешно разделена и камень добавлен!');
+});
+
+socket.on('add stone error', function(data) {
+  console.log('Add stone error:', data);
+  alert(`Ошибка: ${data.message}`);
+});
+
+// Function to update table combination display
+function updateTableCombinationDisplay(data) {
+  const commonTable = getCachedElement('#common-table');
+  if (!commonTable) return;
+  
+  // Find the combination that was modified
+  const combinations = commonTable.querySelectorAll('.combination-group');
+  combinations.forEach(combo => {
+    const comboData = JSON.parse(combo.dataset.combination || '{}');
+    if (comboData.id === data.originalCombination.id) {
+      // Update the combination display
+      if (data.splitResult) {
+        // Handle split case
+        combo.innerHTML = '';
+        combo.appendChild(createCombinationDisplay(data.splitResult.firstRun, combo.dataset.playerName));
+        combo.appendChild(createCombinationDisplay(data.splitResult.secondRun, combo.dataset.playerName));
+      } else {
+        // Handle simple addition
+        combo.innerHTML = '';
+        combo.appendChild(createCombinationDisplay(data.updatedCombination, combo.dataset.playerName));
+      }
+    }
+  });
+}
+
+// Function to create new combination from selected stones
+function createNewCombinationFromStones() {
+  // Check if player has completed initial meld
+  if (!hasCompletedInitialMeld()) {
+    alert('Вы должны сначала сбросить комбинацию на 101+ очков, прежде чем создавать новые комбинации.');
+    return false;
+  }
+
+  // Get selected stones from the board
+  const selectedStones = getSelectedStonesFromBoard();
+  if (selectedStones.length < 3) {
+    alert('Выберите минимум 3 камня для создания комбинации.');
+    return false;
+  }
+
+  // Validate the combination
+  if (!isValidCombination(selectedStones)) {
+    alert('Выбранные камни не образуют валидную комбинацию. Комбинация должна быть либо последовательностью (run), либо набором (set).');
+    return false;
+  }
+
+  // Create the combination object
+  const combination = {
+    stones: selectedStones,
+    points: calculateCombinationPoints(selectedStones),
+    type: isRun(selectedStones) ? 'run' : 'set',
+    startIndex: Math.min(...selectedStones.map(s => s.boardIndex)),
+    endIndex: Math.max(...selectedStones.map(s => s.boardIndex))
+  };
+
+  // Send new combination to server
+  socket.emit('place new combination', {
+    player: you,
+    combination: combination,
+    hasDrawnStone: hasDrawnStoneThisTurn
+  });
+
+  return true;
+}
+
+// Function to get selected stones from the board
+function getSelectedStonesFromBoard() {
+  const board = getCachedElements('.board > div');
+  const selectedStones = [];
+  
+  board.forEach((slot, index) => {
+    if (slot.firstChild && slot.firstChild.classList.contains('selected-for-combination')) {
+      const stone = stoneCSStoOBJECT(slot.firstChild);
+      stone.boardIndex = index;
+      selectedStones.push(stone);
+    }
+  });
+  
+  return selectedStones;
+}
+
+// Function to toggle stone selection for new combination
+function toggleStoneSelectionForNewCombination(stoneElement) {
+  if (!hasCompletedInitialMeld()) {
+    alert('Вы должны сначала сбросить комбинацию на 101+ очков, прежде чем создавать новые комбинации.');
+    return;
+  }
+
+  if (stoneElement.classList.contains('selected-for-combination')) {
+    // Deselect stone
+    stoneElement.classList.remove('selected-for-combination');
+    stoneElement.style.border = '';
+    stoneElement.style.transform = '';
+  } else {
+    // Select stone
+    stoneElement.classList.add('selected-for-combination');
+    stoneElement.style.border = '3px solid #4CAF50';
+    stoneElement.style.transform = 'scale(1.1)';
+  }
+
+  // Update the create combination button
+  updateCreateCombinationButton();
+}
+
+// Function to update create combination button
+function updateCreateCombinationButton() {
+  const button = getCachedElement('#create-new-combination-btn');
+  if (!button) return;
+
+  const selectedStones = getSelectedStonesFromBoard();
+  const isValid = selectedStones.length >= 3 && isValidCombination(selectedStones);
+  const points = isValid ? calculateCombinationPoints(selectedStones) : 0;
+  const hasOpened = hasCompletedInitialMeld();
+
+  if (isValid && hasOpened) {
+    button.disabled = false;
+    button.textContent = `Создать комбинацию (${points} очков)`;
+    button.style.backgroundColor = '#4CAF50';
+  } else if (isValid && !hasOpened) {
+    button.disabled = true;
+    button.textContent = `Создать комбинацию (${points} очков) - Сначала откройте руку`;
+    button.style.backgroundColor = '#f44336';
+  } else if (selectedStones.length < 3) {
+    button.disabled = true;
+    button.textContent = `Создать комбинацию (выберите ${3 - selectedStones.length} камней)`;
+    button.style.backgroundColor = '#cccccc';
+  } else {
+    button.disabled = true;
+    button.textContent = 'Создать комбинацию (невалидная комбинация)';
+    button.style.backgroundColor = '#cccccc';
+  }
+}
+
+// Function to clear stone selection
+function clearStoneSelection() {
+  const board = getCachedElements('.board > div');
+  board.forEach(slot => {
+    if (slot.firstChild) {
+      slot.firstChild.classList.remove('selected-for-combination');
+      slot.firstChild.style.border = '';
+      slot.firstChild.style.transform = '';
+    }
+  });
+  updateCreateCombinationButton();
+}
+
+// Function to enable new combination mode
+function enableNewCombinationMode() {
+  console.log('Enabling new combination mode...');
+  
+  // Clear any existing selection
+  clearStoneSelection();
+  
+  // Add click handlers to stones for selection
+  const board = getCachedElements('.board > div');
+  board.forEach(slot => {
+    if (slot.firstChild) {
+      // Remove existing click handlers
+      slot.firstChild.removeEventListener('click', handleStoneSelectionForNewCombination);
+      // Add new click handler
+      slot.firstChild.addEventListener('click', handleStoneSelectionForNewCombination);
+    }
+  });
+  
+  // Show the create combination button
+  const button = getCachedElement('#create-new-combination-btn');
+  if (button) {
+    button.style.display = 'inline-block';
+  }
+  
+  alert('Режим создания новой комбинации включен! Кликайте на камни для выбора.');
+}
+
+// Function to handle stone selection for new combination
+function handleStoneSelectionForNewCombination(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  toggleStoneSelectionForNewCombination(event.target);
+}
+
+// Function to disable new combination mode
+function disableNewCombinationMode() {
+  console.log('Disabling new combination mode...');
+  
+  // Clear selection
+  clearStoneSelection();
+  
+  // Remove click handlers
+  const board = getCachedElements('.board > div');
+  board.forEach(slot => {
+    if (slot.firstChild) {
+      slot.firstChild.removeEventListener('click', handleStoneSelectionForNewCombination);
+    }
+  });
+  
+  // Hide the create combination button
+  const button = getCachedElement('#create-new-combination-btn');
+  if (button) {
+    button.style.display = 'none';
+  }
+}
+
+// Function to show new combination options
+function showNewCombinationOptions() {
+  const modal = document.createElement('div');
+  modal.className = 'new-combination-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 20px;
+    z-index: 1000;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    min-width: 300px;
+  `;
+  
+  modal.innerHTML = `
+    <h3>Создать новую комбинацию</h3>
+    <p>Выберите камни из вашей руки для создания новой комбинации:</p>
+    <div style="margin: 15px 0;">
+      <button onclick="enableNewCombinationMode(); this.parentElement.parentElement.remove();" style="background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+        Выбрать камни
+      </button>
+      <button onclick="this.parentElement.parentElement.remove();" style="background: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+        Отмена
+      </button>
+    </div>
+    <div style="font-size: 12px; color: #666;">
+      <strong>Правила:</strong><br>
+      • <strong>Последовательность (Run):</strong> 3+ камня одного цвета с последовательными номерами (например, 8♥–9♥–10♥)<br>
+      • <strong>Набор (Set):</strong> 3-4 камня одного номера разных цветов (например, 6♠–6♥–6♦)<br>
+      • Джокеры могут заменять любые недостающие камни
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
 }
 

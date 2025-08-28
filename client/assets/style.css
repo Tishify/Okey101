@@ -483,6 +483,249 @@ h3 {
   opacity: 0.6;
 }
 
+/* Interactive combination styles */
+.combination-group[data-is-interactive="true"] {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 5px;
+}
+
+.combination-group[data-is-interactive="true"]:hover {
+  border-color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.combination-group[data-is-interactive="true"]:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Modal styles for adding stones */
+.add-stone-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 20px;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  min-width: 300px;
+  max-width: 80vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.add-stone-modal h3 {
+  margin-bottom: 15px;
+  color: #333;
+  text-align: center;
+}
+
+.add-stone-modal p {
+  margin-bottom: 15px;
+  color: #666;
+}
+
+#stone-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.available-stone {
+  display: inline-block;
+  margin: 5px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  background: #f0f0f0;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.available-stone:hover {
+  background: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+  transform: scale(1.1);
+}
+
+.available-stone:active {
+  transform: scale(0.95);
+}
+
+.add-stone-modal button {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.add-stone-modal button:hover {
+  background: #d32f2f;
+}
+
+/* Split combination indicator */
+.combination-split-indicator {
+  display: inline-block;
+  margin: 0 10px;
+  color: #4CAF50;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+  .add-stone-modal {
+    min-width: 250px;
+    padding: 15px;
+  }
+  
+  #stone-selection {
+    gap: 5px;
+  }
+  
+  .available-stone {
+    min-width: 35px;
+    padding: 8px;
+    font-size: 14px;
+  }
+}
+
+/* New combination styles */
+.create-combination-button {
+  background-color: #2196F3;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin: 5px;
+}
+
+.create-combination-button:hover {
+  background-color: #1976D2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.create-combination-button:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Selected stone styles */
+.stone.selected-for-combination {
+  border: 3px solid #4CAF50 !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3) !important;
+  z-index: 10;
+  position: relative;
+}
+
+/* New combination modal styles */
+.new-combination-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 20px;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  min-width: 300px;
+  max-width: 80vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.new-combination-modal h3 {
+  margin-bottom: 15px;
+  color: #333;
+  text-align: center;
+}
+
+.new-combination-modal p {
+  margin-bottom: 15px;
+  color: #666;
+}
+
+.new-combination-modal button {
+  margin: 5px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.new-combination-modal button:first-of-type {
+  background: #4CAF50;
+  color: white;
+}
+
+.new-combination-modal button:last-of-type {
+  background: #f44336;
+  color: white;
+}
+
+.new-combination-modal button:hover {
+  opacity: 0.8;
+}
+
+/* Combination selection mode indicator */
+.combination-selection-mode {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #4CAF50;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-weight: bold;
+  z-index: 1001;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Responsive new combination modal */
+@media (max-width: 768px) {
+  .new-combination-modal {
+    min-width: 250px;
+    padding: 15px;
+  }
+  
+  .new-combination-modal button {
+    padding: 8px 15px;
+    font-size: 12px;
+  }
+}
+
 /* Responsive debug button */
 #auto-debug-toggle {
   background-color: #00d2d3;

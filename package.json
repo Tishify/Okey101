@@ -20,7 +20,7 @@
     "firebase-admin": "^13.4.0",
     "helmet": "^4.5.0",
     "morgan": "^1.10.0",
-    "socket.io": "^2.4.0",
+    "socket.io": "^4.8.1",
     "underscore": "^1.13.1"
   },
   "repository": {

@@ -61,12 +61,23 @@
           Сбросить комбинации на стол (мин. 101 очко)
         </button>
       </div>
+      <!-- Кнопка для создания новых комбинаций -->
+      <div style="text-align: center; margin-top: 10px;">
+        <button id="create-new-combination-btn" class="create-combination-button" onclick="createNewCombinationFromStones()" style="display: none;">
+          Создать новую комбинацию
+        </button>
+        <button onclick="showNewCombinationOptions()" style="background-color: #2196F3; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 10px;">
+          ➕ Создать комбинацию
+        </button>
+      </div>
       <!-- Automated debugging toggle -->
       <div style="text-align: center; margin-top: 10px;">
         <button id="auto-debug-toggle" onclick="toggleAutoDebug()" style="background-color: #00d2d3; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
           🤖 Enable Auto Debug
         </button>
       </div>
+      <!-- Interactive combination testing buttons -->
+      
       <!-- Debug info panel -->
       <div id="debug-panel" style="display: none; margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #dee2e6;">
         <h4 style="margin: 0 0 10px 0; color: #495057;">🔍 Debug Information</h4>
