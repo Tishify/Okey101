@@ -4,6 +4,120 @@
 
 This guide covers the implementation of the "Add New Combinations After Opening" feature for Okey 101. Once a player has made their initial meld (≥101 points), they can add tiles to existing combinations and create new combinations from their hand.
 
+## Current Issues and Completion Plan
+
+### 🔴 Critical Issues to Fix
+
+#### 1. Stone Addition Logic Incomplete
+**Problem:** Stones disappear or show "not suitable" error after adding to combinations
+**Root Cause:** 
+- Inconsistent stone identification between client and server
+- Missing proper stone removal from player's hand
+- Incorrect combination validation after modification
+
+**Solution:**
+```javascript
+// Fix stone identification
+function findStoneInDeck(stone, deck) {
+  return deck.findIndex(deckStone => 
+    deckStone.numb === stone.numb && 
+    deckStone.colour === stone.colour  // Use 'colour' instead of 'suit'
+  );
+}
+```
+
+#### 2. Combination Splitting Logic Broken
+**Problem:** When splitting runs to insert tiles, the split result is not properly displayed
+**Root Cause:**
+- Split logic creates two combinations but UI doesn't update correctly
+- Missing proper combination ID management
+
+**Solution:**
+```javascript
+// Fix split combination handling
+function handleCombinationSplit(splitResult, originalCombination) {
+  // Remove original combination
+  removeCombinationFromTable(originalCombination.id);
+  
+  // Add both new combinations
+  addCombinationToTable(splitResult.firstRun);
+  addCombinationToTable(splitResult.secondRun);
+}
+```
+
+#### 3. Joker Handling in Combinations
+**Problem:** Jokers are not properly validated when adding to combinations
+**Root Cause:**
+- Missing joker value resolution logic
+- Inconsistent joker identification
+
+**Solution:**
+```javascript
+// Add joker resolution
+function resolveJokerValue(joker, indicatorStone) {
+  if (joker.isJoker || joker.isFalseJoker) {
+    let jokerNumber;
+    if (indicatorStone.numb === "13") {
+      jokerNumber = 1;
+    } else {
+      jokerNumber = parseInt(indicatorStone.numb) + 1;
+    }
+    return { numb: jokerNumber.toString(), colour: indicatorStone.colour };
+  }
+  return joker;
+}
+```
+
+#### 4. Turn Validation Incomplete
+**Problem:** Players can add stones outside their turn
+**Root Cause:**
+- Missing turn check in client-side validation
+- Server-side validation not comprehensive
+
+### 🟡 Medium Priority Issues
+
+#### 5. UI Feedback Missing
+**Problem:** No visual feedback when stone addition fails
+**Solution:** Add toast notifications and error highlighting
+
+#### 6. Performance Issues
+**Problem:** Slow response when adding stones to large combinations
+**Solution:** Optimize DOM updates and combination validation
+
+#### 7. Edge Cases Not Handled
+**Problem:** Missing validation for edge cases like:
+- Adding to combination with maximum stones (4 for sets)
+- Adding stone that would create invalid combination
+- Multiple players trying to modify same combination
+
+### 🟢 Low Priority Improvements
+
+#### 8. Better Error Messages
+**Problem:** Generic error messages don't help players understand what went wrong
+**Solution:** Add specific error messages for each validation failure
+
+#### 9. Undo Functionality
+**Problem:** No way to undo stone additions
+**Solution:** Add undo/redo system for stone operations
+
+## Implementation Priority
+
+### Phase 1: Critical Fixes (Week 1)
+1. Fix stone identification and removal
+2. Complete combination splitting logic
+3. Add proper joker handling
+4. Implement comprehensive turn validation
+
+### Phase 2: UI Improvements (Week 2)
+1. Add proper error handling and feedback
+2. Optimize performance
+3. Handle edge cases
+
+### Phase 3: Testing and Polish (Week 3)
+1. Add automated testing
+2. Improve error messages
+3. Add undo functionality
+
 ## Key Features
 
 ### 1. Initial Meld Requirement (NEW)

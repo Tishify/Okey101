@@ -930,8 +930,23 @@ io.on('connection', (socket) => {
 // Function to find stone in player's deck
 function findStoneInDeck(stone, deck) {
   return deck.findIndex(deckStone => 
-    deckStone.numb === stone.numb && deckStone.suit === stone.suit
+    deckStone.numb === stone.numb && 
+    deckStone.colour === stone.colour  // Fixed: Use 'colour' instead of 'suit'
   );
+}
+
+// Function to resolve joker value based on indicator stone
+function resolveJokerValue(joker, indicatorStone) {
+  if (joker.isJoker || joker.isFalseJoker) {
+    let jokerNumber;
+    if (indicatorStone.numb === "13") {
+      jokerNumber = 1;
+    } else {
+      jokerNumber = parseInt(indicatorStone.numb) + 1;
+    }
+    return { numb: jokerNumber.toString(), colour: indicatorStone.colour };
+  }
+  return joker;
 }
 
 // Function to validate adding stone to combination
@@ -1017,14 +1032,20 @@ function validateAddToRun(stone, runStones, position) {
 
 // Function to validate adding stone to set
 function validateAddToSet(stone, setStones) {
+  // Check if stone has same number as set
   if (stone.numb !== setStones[0].numb) {
     return { valid: false, message: 'Stone must have the same number as the set.' };
   }
   
-  // Check if stone has a different suit than existing stones
-  const existingSuits = setStones.map(s => s.suit);
-  if (existingSuits.includes(stone.suit)) {
-    return { valid: false, message: 'Set already contains a stone with this suit.' };
+  // Check if set is already full (maximum 4 stones)
+  if (setStones.length >= 4) {
+    return { valid: false, message: 'Set is already full (maximum 4 stones).' };
+  }
+  
+  // Check for duplicate colors (except for jokers)
+  const existingColors = setStones.map(s => s.colour);
+  if (existingColors.includes(stone.colour)) {
+    return { valid: false, message: 'Set already contains a stone of this color.' };
   }
   
   return { valid: true };

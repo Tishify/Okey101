@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server/server",
     "dev": "nodemon server/server",
-    "setup-firebase": "node setup-firebase.js"
+    "setup-firebase": "node setup-firebase.js",
+    "test": "node test/combination-testing.js",
+    "test:watch": "nodemon test/combination-testing.js",
+    "test:coverage": "node test/combination-testing.js --coverage"
   },
   "author": "Erkut",
   "license": "GPL-3.0",
